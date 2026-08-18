@@ -6,6 +6,7 @@ import path from 'path';
 import { extractTextFromPDF, splitIntoChunks, Chunk } from './pdfService';
 import { embedChunks, findRelevantChunks, ChunkWithEmbedding } from './embeddingService';
 import { generateAnswer } from './groqService';
+import path from 'path';
 
 dotenv.config();
 
@@ -14,6 +15,8 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json());
+// Serve o frontend estático
+app.use(express.static(path.join(__dirname, '../public')));
 
 // Configura onde e como salvar os PDFs enviados
 const storage = multer.diskStorage({

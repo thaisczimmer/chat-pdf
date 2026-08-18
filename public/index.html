@@ -198,7 +198,7 @@
             formData.append('pdf', file);
 
             try {
-                const res = await fetch('http://localhost:3000/upload', {
+                const res = await fetch('/upload', {
                     method: 'POST',
                     body: formData,
                 });
@@ -239,7 +239,7 @@
             const loadingMsg = addMessage('loading-msg', 'Pensando...');
 
             try {
-                const res = await fetch('http://localhost:3000/chat', {
+                const res = await fetch('/chat', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ question }),
