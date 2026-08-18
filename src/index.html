@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat com PDF</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: system-ui, sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1 {
+            font-size: 24px;
+            margin-bottom: 24px;
+            color: #fff;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 700px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .upload-area {
+            border: 2px dashed #333;
+            border-radius: 12px;
+            padding: 24px;
+            text-align: center;
+            background: #1a1a1a;
+        }
+
+        input[type="file"] {
+            display: none;
+        }
+
+        .upload-btn {
+            display: inline-block;
+            padding: 10px 20px;
+            background: #2563eb;
+            color: #fff;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            font-size: 13px;
+            color: #888;
+            margin-top: 8px;
+        }
+
+        .status.success {
+            color: #22c55e;
+        }
+
+        .status.error {
+            color: #ef4444;
+        }
+
+        .status.loading {
+            color: #f59e0b;
+        }
+
+        .chat-box {
+            background: #1a1a1a;
+            border-radius: 12px;
+            padding: 16px;
+            height: 350px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .message {
+            padding: 10px 14px;
+            border-radius: 10px;
+            font-size: 14px;
+            line-height: 1.6;
+            max-width: 85%;
+        }
+
+        .message.user {
+            background: #2563eb;
+            color: #fff;
+            align-self: flex-end;
+        }
+
+        .message.bot {
+            background: #2a2a2a;
+            color: #e0e0e0;
+            align-self: flex-start;
+        }
+
+        .message.loading-msg {
+            background: #2a2a2a;
+            color: #888;
+            align-self: flex-start;
+            font-style: italic;
+        }
+
+        .input-area {
+            display: flex;
+            gap: 8px;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            padding: 12px 16px;
+            border-radius: 8px;
+            border: 1px solid #333;
+            background: #1a1a1a;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+
+        input[type="text"]:focus {
+            border-color: #2563eb;
+        }
+
+        button#sendBtn {
+            padding: 12px 20px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        button#sendBtn:disabled {
+            background: #333;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>💬 Chat com PDF</h1>
+
+    <div class="container">
+
+        <!-- Upload -->
+        <div class="upload-area">
+            <label class="upload-btn" for="pdfInput">📄 Escolher PDF</label>
+            <input type="file" id="pdfInput" accept=".pdf" />
+            <div class="status" id="uploadStatus">Nenhum arquivo carregado</div>
+        </div>
+
+        <!-- Chat -->
+        <div class="chat-box" id="chatBox">
+            <div class="message bot">Olá! Faça upload de um PDF e me faça perguntas sobre ele.</div>
+        </div>
+
+        <!-- Input -->
+        <div class="input-area">
+            <input type="text" id="questionInput" placeholder="Faça uma pergunta sobre o documento..." disabled />
+            <button id="sendBtn" disabled>Enviar</button>
+        </div>
+
+    </div>
+
+    <script>
+        const pdfInput = document.getElementById('pdfInput');
+        const uploadStatus = document.getElementById('uploadStatus');
+        const chatBox = document.getElementById('chatBox');
+        const questionInput = document.getElementById('questionInput');
+        const sendBtn = document.getElementById('sendBtn');
+
+        // Upload do PDF
+        pdfInput.addEventListener('change', async (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            uploadStatus.className = 'status loading';
+            uploadStatus.textContent = 'Processando PDF... pode demorar alguns segundos';
+
+            const formData = new FormData();
+            formData.append('pdf', file);
+
+            try {
+                const res = await fetch('http://localhost:3000/upload', {
+                    method: 'POST',
+                    body: formData,
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    uploadStatus.className = 'status success';
+                    uploadStatus.textContent = `✅ ${file.name} carregado — ${data.chunks} chunks gerados`;
+                    questionInput.disabled = false;
+                    sendBtn.disabled = false;
+                    chatBox.innerHTML = '';
+                    addMessage('bot', `Documento carregado! Agora você pode me fazer perguntas sobre "${file.name}".`);
+                } else {
+                    throw new Error(data.error);
+                }
+
+            } catch (err) {
+                uploadStatus.className = 'status error';
+                uploadStatus.textContent = '❌ Erro ao processar o PDF. Tente novamente.';
+            }
+        });
+
+        // Enviar pergunta
+        sendBtn.addEventListener('click', sendQuestion);
+        questionInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') sendQuestion();
+        });
+
+        async function sendQuestion() {
+            const question = questionInput.value.trim();
+            if (!question) return;
+
+            addMessage('user', question);
+            questionInput.value = '';
+            sendBtn.disabled = true;
+
+            const loadingMsg = addMessage('loading-msg', 'Pensando...');
+
+            try {
+                const res = await fetch('http://localhost:3000/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ question }),
+                });
+
+                const data = await res.json();
+                loadingMsg.remove();
+
+                if (res.ok) {
+                    addMessage('bot', data.answer);
+                } else {
+                    addMessage('bot', `Erro: ${data.error}`);
+                }
+
+            } catch (err) {
+                loadingMsg.remove();
+                addMessage('bot', 'Erro ao conectar com o servidor.');
+            } finally {
+                sendBtn.disabled = false;
+                questionInput.focus();
+            }
+        }
+
+        function addMessage(type, text) {
+            const msg = document.createElement('div');
+            msg.className = `message ${type}`;
+            msg.textContent = text;
+            chatBox.appendChild(msg);
+            chatBox.scrollTop = chatBox.scrollHeight;
+            return msg;
+        }
+    </script>
+</body>
+
+</html>
