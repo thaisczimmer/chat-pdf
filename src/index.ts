@@ -6,7 +6,6 @@ import path from 'path';
 import { extractTextFromPDF, splitIntoChunks, Chunk } from './pdfService';
 import { embedChunks, findRelevantChunks, ChunkWithEmbedding } from './embeddingService';
 import { generateAnswer } from './groqService';
-import path from 'path';
 
 dotenv.config();
 
